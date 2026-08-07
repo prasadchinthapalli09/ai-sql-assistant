@@ -1,0 +1,47 @@
+const { Pool } = require("pg");
+
+// Cache of live pg Pools keyed by connectionId, so we don't reconnect on
+// every single query. Pools are lazily created and can be evicted.
+const pools = new Map();
+
+function getPool(connectionId, connectionString) {
+  if (pools.has(connectionId)) {
+    return pools.get(connectionId);
+  }
+
+  const pool = new Pool({
+    connectionString,
+    ssl: { rejectUnauthorized: false },
+    max: 5,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
+  });
+
+  pools.set(connectionId, pool);
+  return pool;
+}
+
+async function closePool(connectionId) {
+  const pool = pools.get(connectionId);
+  if (pool) {
+    await pool.end();
+    pools.delete(connectionId);
+  }
+}
+
+async function testConnection(connectionString) {
+  const testPool = new Pool({
+    connectionString,
+    ssl: { rejectUnauthorized: false },
+    max: 1,
+    connectionTimeoutMillis: 8000,
+  });
+  try {
+    await testPool.query("SELECT 1");
+    return true;
+  } finally {
+    await testPool.end();
+  }
+}
+
+module.exports = { getPool, closePool, testConnection };

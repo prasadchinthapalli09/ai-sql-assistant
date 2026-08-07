@@ -1,0 +1,85 @@
+// Prisma schema for AI SQL Assistant
+// This connects to the app's OWN Postgres (Neon) database — it stores users,
+// saved connections, history, favorites. It is separate from the external
+// databases users connect to and query with natural language.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  connections DatabaseConnection[]
+  history     QueryHistory[]
+  favorites   Favorite[]
+}
+
+model DatabaseConnection {
+  id                 String   @id @default(uuid())
+  name               String
+  encryptedConnStr   String   // AES-256-GCM encrypted Postgres connection string
+  host               String
+  port               Int
+  database           String
+  isActive           Boolean  @default(false)
+  lastConnectedAt    DateTime?
+  createdAt          DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  history   QueryHistory[]
+  favorites Favorite[]
+
+  @@index([userId])
+}
+
+model QueryHistory {
+  id              String   @id @default(uuid())
+  naturalLanguage String
+  generatedSql    String
+  executionTimeMs Int?
+  rowCount        Int?
+  success         Boolean  @default(true)
+  errorMessage    String?
+  createdAt       DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  connectionId String?
+  connection   DatabaseConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+
+  favorite Favorite?
+
+  @@index([userId])
+  @@index([connectionId])
+}
+
+model Favorite {
+  id        String   @id @default(uuid())
+  title     String
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  historyId String       @unique
+  history   QueryHistory @relation(fields: [historyId], references: [id], onDelete: Cascade)
+
+  connectionId String?
+  connection   DatabaseConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}

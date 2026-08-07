@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# Ignore .env.example too (if you don't want it public)
+.env.example
+
+# Logs
+logs/
+*.log
+
+# Build folders
+dist/
+build/
+
+# Cache
+.cache/
+.vite/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# VS Code settings
+.vscode/
+
+# Coverage
+coverage/
+
+# Prisma generated files (optional)
+prisma/generated/
+
+# Temporary files
+*.tmp
+*.temp
