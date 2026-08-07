@@ -2,7 +2,7 @@
 
 Ask your PostgreSQL database questions in plain English. The app reads your schema, uses an LLM (via Groq) to generate a safe, read-only SQL query, runs it, charts the result, and explains what it means — all with query history and favorites.
 
-**Live demo:** _add your deployed URL here once deployed_
+**Live demo: https://ai-sql-assistant-khaki.vercel.app/ **
 
 ---
 
