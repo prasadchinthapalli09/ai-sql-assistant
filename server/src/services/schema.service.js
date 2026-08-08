@@ -8,7 +8,7 @@ const COLUMNS_QUERY = `
     c.is_nullable,
     c.column_default
   FROM information_schema.columns c
-  WHERE c.table_schema = 'public'
+  WHERE c.table_schema = $1
   ORDER BY c.table_name, c.ordinal_position;
 `;
 
@@ -21,7 +21,7 @@ const PRIMARY_KEYS_QUERY = `
     ON tc.constraint_name = kcu.constraint_name
    AND tc.table_schema = kcu.table_schema
   WHERE tc.constraint_type = 'PRIMARY KEY'
-    AND tc.table_schema = 'public';
+    AND tc.table_schema = $1;
 `;
 
 const FOREIGN_KEYS_QUERY = `
@@ -38,22 +38,23 @@ const FOREIGN_KEYS_QUERY = `
     ON tc.constraint_name = ccu.constraint_name
    AND tc.table_schema = ccu.table_schema
   WHERE tc.constraint_type = 'FOREIGN KEY'
-    AND tc.table_schema = 'public';
+    AND tc.table_schema = $1;
 `;
 
 /**
- * Discovers the full public schema of a connected Postgres database:
+ * Discovers the full schema of a connected Postgres database (defaults to
+ * the "public" schema; pass schemaName for isolated uploaded datasets):
  * tables, columns, data types, primary keys and foreign key relationships.
  * Returns a structured object AND a compact text representation used for
  * prompting the AI model.
  */
-async function discoverSchema(connectionId, connectionString) {
-  const pool = getPool(connectionId, connectionString);
+async function discoverSchema(connectionId, connectionString, schemaName = "public") {
+  const pool = getPool(connectionId, connectionString, schemaName !== "public" ? schemaName : null);
 
   const [columnsRes, pkRes, fkRes] = await Promise.all([
-    pool.query(COLUMNS_QUERY),
-    pool.query(PRIMARY_KEYS_QUERY),
-    pool.query(FOREIGN_KEYS_QUERY),
+    pool.query(COLUMNS_QUERY, [schemaName]),
+    pool.query(PRIMARY_KEYS_QUERY, [schemaName]),
+    pool.query(FOREIGN_KEYS_QUERY, [schemaName]),
   ]);
 
   const tables = {};
