@@ -4,7 +4,7 @@ const { Pool } = require("pg");
 // every single query. Pools are lazily created and can be evicted.
 const pools = new Map();
 
-function getPool(connectionId, connectionString, schemaName = null) {
+function getPool(connectionId, connectionString) {
   if (pools.has(connectionId)) {
     return pools.get(connectionId);
   }
@@ -15,10 +15,6 @@ function getPool(connectionId, connectionString, schemaName = null) {
     max: 5,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 10000,
-    // For uploaded datasets, every connection in this pool defaults its
-    // search_path to the dataset's isolated schema, so queries never need
-    // to (and can't accidentally) reach outside it.
-    ...(schemaName ? { options: `-c search_path=${schemaName},public` } : {}),
   });
 
   pools.set(connectionId, pool);
