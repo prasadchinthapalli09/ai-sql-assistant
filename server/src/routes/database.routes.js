@@ -10,6 +10,8 @@ const router = express.Router();
 router.use(protect);
 
 router.post("/upload", upload.single("file"), controller.uploadFile);
+router.get("/samples", controller.listSamples);
+router.post("/samples/:key", controller.importSample);
 
 router.post(
   "/",
