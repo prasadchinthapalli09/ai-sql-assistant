@@ -41,10 +41,16 @@ async function createConnection(userId, { name, connectionString }) {
   return connection;
 }
 
+const CONNECTION_SELECT = {
+  id: true, name: true, host: true, port: true, database: true,
+  isActive: true, lastConnectedAt: true, createdAt: true,
+  sourceType: true, schemaName: true, fileType: true, originalFileName: true,
+};
+
 async function listConnections(userId) {
   return prisma.databaseConnection.findMany({
     where: { userId },
-    select: { id: true, name: true, host: true, port: true, database: true, isActive: true, lastConnectedAt: true, createdAt: true },
+    select: CONNECTION_SELECT,
     orderBy: { createdAt: "desc" },
   });
 }
@@ -71,15 +77,27 @@ async function testExistingConnection(userId, connectionId) {
 }
 
 async function deleteConnection(userId, connectionId) {
-  await getConnectionOrThrow(userId, connectionId);
+  const connection = await getConnectionOrThrow(userId, connectionId);
   await closePool(connectionId);
+
+  if (connection.sourceType === "UPLOAD" && connection.schemaName) {
+    const { createAdminPool } = require("../utils/pgPoolManager");
+    const { quoteIdent } = require("../utils/sanitizeIdentifier");
+    const adminPool = createAdminPool(process.env.DATABASE_URL);
+    try {
+      await adminPool.query(`DROP SCHEMA IF EXISTS ${quoteIdent(connection.schemaName)} CASCADE`);
+    } finally {
+      await adminPool.end();
+    }
+  }
+
   await prisma.databaseConnection.delete({ where: { id: connectionId } });
 }
 
 async function getSchema(userId, connectionId) {
   const connection = await getConnectionOrThrow(userId, connectionId);
   const connStr = decrypt(connection.encryptedConnStr);
-  return discoverSchema(connectionId, connStr);
+  return discoverSchema(connectionId, connStr, connection.schemaName || "public");
 }
 
 module.exports = {
