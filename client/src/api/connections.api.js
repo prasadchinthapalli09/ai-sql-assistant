@@ -22,3 +22,9 @@ export const uploadDatabaseFile = (formData, onUploadProgress) =>
       onUploadProgress,
     })
     .then((r) => r.data.data.connection);
+
+export const listSampleDatasets = () =>
+  apiClient.get("/connections/samples").then((r) => r.data.data.samples);
+
+export const importSampleDataset = (key) =>
+  apiClient.post(`/connections/samples/${key}`).then((r) => r.data.data.connection);
