@@ -3,8 +3,8 @@ import { useForm } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Plus, Trash2, PlugZap, CheckCircle2, Loader2, Database, Upload, FileSpreadsheet, FileCode, FileBox } from "lucide-react";
-import { listConnections, createConnection, testConnection, deleteConnection, uploadDatabaseFile } from "../api/connections.api";
+import { Plus, Trash2, PlugZap, CheckCircle2, Loader2, Database, Upload, FileSpreadsheet, FileCode, FileBox, Sparkles } from "lucide-react";
+import { listConnections, createConnection, testConnection, deleteConnection, uploadDatabaseFile, listSampleDatasets, importSampleDataset } from "../api/connections.api";
 import { useConnection } from "../context/ConnectionContext.jsx";
 
 const FILE_TYPE_META = {
@@ -28,6 +28,12 @@ export default function Connections() {
   const { data: connections, isLoading } = useQuery({
     queryKey: ["connections"],
     queryFn: listConnections,
+  });
+
+  const { data: samples } = useQuery({
+    queryKey: ["sample-datasets"],
+    queryFn: listSampleDatasets,
+    staleTime: Infinity,
   });
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm();
@@ -99,6 +105,16 @@ export default function Connections() {
     uploadMutation.mutate(formData);
   };
 
+  const sampleMutation = useMutation({
+    mutationFn: importSampleDataset,
+    onSuccess: (conn) => {
+      toast.success(`${conn.name} loaded!`);
+      queryClient.invalidateQueries({ queryKey: ["connections"] });
+      useThisDb(conn.id);
+    },
+    onError: (err) => toast.error(err.response?.data?.message || "Could not load sample dataset"),
+  });
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex items-center justify-between">
@@ -113,6 +129,42 @@ export default function Connections() {
           New Connection
         </button>
       </div>
+
+      {samples?.length > 0 && (
+        <div>
+          <h2 className="mb-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+            Try a sample dataset
+          </h2>
+          <p className="mb-3 text-xs text-slate-400">
+            No file to upload? Load one of these instantly and start asking questions.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {samples.map((s) => (
+              <div key={s.key} className="glass-card flex flex-col justify-between p-4">
+                <div>
+                  <div className="mb-1 flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-brand-600" />
+                    <h3 className="text-sm font-semibold">{s.name}</h3>
+                  </div>
+                  <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">{s.description}</p>
+                </div>
+                <button
+                  className="btn-secondary self-start !px-3 !py-1.5 text-xs"
+                  onClick={() => sampleMutation.mutate(s.key)}
+                  disabled={sampleMutation.isPending}
+                >
+                  {sampleMutation.isPending && sampleMutation.variables === s.key ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5" />
+                  )}
+                  Load this dataset
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <div className="glass-card p-6">
