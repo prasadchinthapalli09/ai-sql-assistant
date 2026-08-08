@@ -18,10 +18,11 @@ const MAX_ROWS_RETURNED = 500;
 async function runNaturalLanguageQuery(userId, { connectionId, question, conversationHistory }) {
   const connection = await getConnectionOrThrow(userId, connectionId);
   const connectionString = decrypt(connection.encryptedConnStr);
+  const schemaName = connection.schemaName || "public";
 
-  const schema = await discoverSchema(connectionId, connectionString);
+  const schema = await discoverSchema(connectionId, connectionString, schemaName);
   if (schema.tables.length === 0) {
-    throw new ApiError(400, "No tables found in the public schema of this database");
+    throw new ApiError(400, `No tables found in this database (schema: ${schemaName})`);
   }
 
   let sql;
@@ -33,7 +34,7 @@ async function runNaturalLanguageQuery(userId, { connectionId, question, convers
     throw err;
   }
 
-  const pool = getPool(connectionId, connectionString);
+  const pool = getPool(connectionId, connectionString, schemaName !== "public" ? schemaName : null);
   const start = Date.now();
   let result;
   try {
