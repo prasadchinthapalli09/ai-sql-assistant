@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Plus, Trash2, PlugZap, CheckCircle2, Loader2, Database, Upload, FileSpreadsheet, FileCode, FileBox } from "lucide-react";
 import { listConnections, createConnection, testConnection, deleteConnection, uploadDatabaseFile } from "../api/connections.api";
@@ -17,9 +18,11 @@ export default function Connections() {
   const [mode, setMode] = useState("live"); // "live" | "upload"
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadName, setUploadName] = useState("");
+  const [uploadNameTouched, setUploadNameTouched] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef(null);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { activeConnectionId, setActiveConnectionId } = useConnection();
 
   const { data: connections, isLoading } = useQuery({
@@ -34,7 +37,7 @@ export default function Connections() {
     onSuccess: (conn) => {
       toast.success("Database connected!");
       queryClient.invalidateQueries({ queryKey: ["connections"] });
-      setActiveConnectionId(conn.id);
+      useThisDb(conn.id);
       setShowForm(false);
       reset();
     },
@@ -57,6 +60,11 @@ export default function Connections() {
 
   const onSubmit = (values) => createMutation.mutate(values);
 
+  const useThisDb = (connectionId) => {
+    setActiveConnectionId(connectionId);
+    navigate("/query");
+  };
+
   const uploadMutation = useMutation({
     mutationFn: (formData) =>
       uploadDatabaseFile(formData, (evt) => {
@@ -65,10 +73,11 @@ export default function Connections() {
     onSuccess: (conn) => {
       toast.success(`${conn.name} imported successfully!`);
       queryClient.invalidateQueries({ queryKey: ["connections"] });
-      setActiveConnectionId(conn.id);
+      useThisDb(conn.id);
       setShowForm(false);
       setUploadFile(null);
       setUploadName("");
+      setUploadNameTouched(false);
       setUploadProgress(0);
       if (fileInputRef.current) fileInputRef.current.value = "";
     },
@@ -165,9 +174,12 @@ export default function Connections() {
                 <label className="mb-1 block text-sm font-medium">Dataset name</label>
                 <input
                   className="input-field"
-                  placeholder="Sales Data 2024"
+                  placeholder="Auto-detected from your file — editable"
                   value={uploadName}
-                  onChange={(e) => setUploadName(e.target.value)}
+                  onChange={(e) => {
+                    setUploadNameTouched(true);
+                    setUploadName(e.target.value);
+                  }}
                 />
               </div>
               <div>
@@ -188,7 +200,13 @@ export default function Connections() {
                   type="file"
                   accept=".csv,.sql,.db,.sqlite,.sqlite3"
                   className="hidden"
-                  onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setUploadFile(file);
+                    if (file && !uploadNameTouched) {
+                      setUploadName(file.name.replace(/\.(csv|sql|db|sqlite3?|sqlite)$/i, ""));
+                    }
+                  }}
                 />
               </div>
               {uploadMutation.isPending && (
@@ -252,7 +270,7 @@ export default function Connections() {
                   {isUpload ? conn.originalFileName : `${conn.host}:${conn.port}/${conn.database}`}
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  <button className="btn-secondary !px-3 !py-1.5 text-xs" onClick={() => setActiveConnectionId(conn.id)}>
+                  <button className="btn-secondary !px-3 !py-1.5 text-xs" onClick={() => useThisDb(conn.id)}>
                     Use this DB
                   </button>
                   {!isUpload && (
