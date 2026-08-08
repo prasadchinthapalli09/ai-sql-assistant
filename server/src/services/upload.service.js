@@ -1,4 +1,6 @@
 const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
 const { parse } = require("csv-parse/sync");
 const prisma = require("../config/prisma");
 const ApiError = require("../utils/ApiError");
@@ -6,6 +8,40 @@ const { encrypt } = require("../utils/crypto");
 const { createAdminPool } = require("../utils/pgPoolManager");
 const { sanitizeIdentifier, dedupeIdentifiers, quoteIdent } = require("../utils/sanitizeIdentifier");
 const { inferColumnTypes, coerceValue } = require("../utils/typeInference");
+
+const SAMPLE_DATA_DIR = path.join(__dirname, "..", "..", "sample-data");
+
+// Bundled example datasets every user can try instantly, no upload needed.
+const SAMPLE_DATASETS = [
+  {
+    key: "fifa_world_cup",
+    name: "FIFA World Cup Matches",
+    description: "Every World Cup match from 1930 to 2026 — teams, scores, stadiums, and results.",
+    file: "fifa_world_cup.csv",
+  },
+  {
+    key: "amazon_products",
+    name: "Amazon Product Reviews",
+    description: "Amazon product listings with prices, ratings, and review data.",
+    file: "amazon_products.csv",
+  },
+  {
+    key: "gold_stock_prices",
+    name: "Gold Price History",
+    description: "Daily gold price history — open, high, low, close, and trading volume.",
+    file: "gold_stock_prices.csv",
+  },
+  {
+    key: "marvel_movies",
+    name: "Marvel Movies",
+    description: "Marvel Cinematic Universe films — ratings, box office, cast, and release info.",
+    file: "marvel_movies.csv",
+  },
+];
+
+function listSampleDatasets() {
+  return SAMPLE_DATASETS.map(({ key, name, description }) => ({ key, name, description }));
+}
 
 const MAX_ROWS = 50000; // sane cap for a portfolio-scale demo app
 const BATCH_SIZE = 500;
@@ -270,6 +306,27 @@ async function importSqlite(userId, { name, originalFileName, fileBuffer }) {
 
 // ---------------------------------------------------------------------------
 
+async function importSampleDataset(userId, sampleKey) {
+  const sample = SAMPLE_DATASETS.find((s) => s.key === sampleKey);
+  if (!sample) {
+    throw new ApiError(404, "Unknown sample dataset");
+  }
+
+  const filePath = path.join(SAMPLE_DATA_DIR, sample.file);
+  let fileBuffer;
+  try {
+    fileBuffer = fs.readFileSync(filePath);
+  } catch (err) {
+    throw new ApiError(500, `Sample dataset file is missing on the server: ${sample.file}`);
+  }
+
+  return importCsv(userId, {
+    name: sample.name,
+    originalFileName: sample.file,
+    fileBuffer,
+  });
+}
+
 async function importFile(userId, { name, originalFileName, fileBuffer }) {
   const ext = originalFileName.split(".").pop().toLowerCase();
 
@@ -285,4 +342,4 @@ async function importFile(userId, { name, originalFileName, fileBuffer }) {
   throw new ApiError(400, `Unsupported file type ".${ext}" — upload a .csv, .sql, or .db/.sqlite file`);
 }
 
-module.exports = { importFile };
+module.exports = { importFile, listSampleDatasets, importSampleDataset };
