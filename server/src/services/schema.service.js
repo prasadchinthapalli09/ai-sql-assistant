@@ -49,7 +49,7 @@ const FOREIGN_KEYS_QUERY = `
  * prompting the AI model.
  */
 async function discoverSchema(connectionId, connectionString, schemaName = "public") {
-  const pool = getPool(connectionId, connectionString, schemaName !== "public" ? schemaName : null);
+  const pool = getPool(connectionId, connectionString);
 
   const [columnsRes, pkRes, fkRes] = await Promise.all([
     pool.query(COLUMNS_QUERY, [schemaName]),
@@ -91,11 +91,17 @@ async function discoverSchema(connectionId, connectionString, schemaName = "publ
 
   return {
     tables: tableList,
-    promptText: buildSchemaPromptText(tableList),
+    schemaName,
+    promptText: buildSchemaPromptText(tableList, schemaName),
   };
 }
 
-function buildSchemaPromptText(tables) {
+function buildSchemaPromptText(tables, schemaName = "public") {
+  // Non-default schemas (uploaded datasets) must be fully qualified in every
+  // generated query — Neon's pooled connections don't support setting
+  // search_path at the session/connection level, so we bake the schema
+  // prefix directly into the table names the AI is told to use.
+  const prefix = schemaName && schemaName !== "public" ? `${schemaName}.` : "";
   return tables
     .map((t) => {
       const cols = t.columns
@@ -107,9 +113,9 @@ function buildSchemaPromptText(tables) {
         })
         .join(", ");
       const fks = t.foreignKeys
-        .map((f) => `${f.column} -> ${f.referencesTable}.${f.referencesColumn}`)
+        .map((f) => `${f.column} -> ${prefix}${f.referencesTable}.${f.referencesColumn}`)
         .join("; ");
-      return `TABLE ${t.name}:\n  Columns: ${cols}${fks ? `\n  Foreign Keys: ${fks}` : ""}`;
+      return `TABLE ${prefix}${t.name}:\n  Columns: ${cols}${fks ? `\n  Foreign Keys: ${fks}` : ""}`;
     })
     .join("\n\n");
 }
