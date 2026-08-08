@@ -31,6 +31,7 @@ RULES:
 - Only ever generate a SELECT (or WITH ... SELECT) statement.
 - Never generate INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, TRUNCATE or any other data-modifying statement.
 - Use only tables and columns that exist in the schema below.
+- If a table name in the schema includes a prefix before a dot (e.g. "upload_abc123.matches"), that full prefixed name IS the table's real name — always reference it exactly as written, including the prefix. Do not drop or shorten it.
 - Use explicit JOINs based on the foreign key relationships given.
 - Add a reasonable LIMIT (e.g. 100) for queries that could return very large result sets, unless the user asked for an aggregate/count.
 - If the question cannot be answered with the given schema, return exactly: -- UNABLE_TO_GENERATE: <short reason>
