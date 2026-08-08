@@ -42,4 +42,14 @@ const uploadFile = asyncHandler(async (req, res) => {
   res.status(201).json({ success: true, data: { connection } });
 });
 
-module.exports = { create, list, testConnection, remove, getSchema, uploadFile };
+const listSamples = asyncHandler(async (req, res) => {
+  const samples = uploadService.listSampleDatasets();
+  res.status(200).json({ success: true, data: { samples } });
+});
+
+const importSample = asyncHandler(async (req, res) => {
+  const connection = await uploadService.importSampleDataset(req.user.id, req.params.key);
+  res.status(201).json({ success: true, data: { connection } });
+});
+
+module.exports = { create, list, testConnection, remove, getSchema, uploadFile, listSamples, importSample };
