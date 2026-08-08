@@ -1,5 +1,7 @@
 const asyncHandler = require("../utils/asyncHandler");
 const databaseService = require("../services/database.service");
+const uploadService = require("../services/upload.service");
+const ApiError = require("../utils/ApiError");
 
 const create = asyncHandler(async (req, res) => {
   const { name, connectionString } = req.body;
@@ -27,4 +29,17 @@ const getSchema = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, data: { schema: schema.tables } });
 });
 
-module.exports = { create, list, testConnection, remove, getSchema };
+const uploadFile = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    throw new ApiError(400, "No file was uploaded");
+  }
+  const name = req.body.name?.trim() || req.file.originalname;
+  const connection = await uploadService.importFile(req.user.id, {
+    name,
+    originalFileName: req.file.originalname,
+    fileBuffer: req.file.buffer,
+  });
+  res.status(201).json({ success: true, data: { connection } });
+});
+
+module.exports = { create, list, testConnection, remove, getSchema, uploadFile };
