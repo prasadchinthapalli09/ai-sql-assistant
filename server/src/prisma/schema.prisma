@@ -25,6 +25,11 @@ model User {
   favorites   Favorite[]
 }
 
+enum ConnectionSourceType {
+  LIVE
+  UPLOAD
+}
+
 model DatabaseConnection {
   id                 String   @id @default(uuid())
   name               String
@@ -35,6 +40,13 @@ model DatabaseConnection {
   isActive           Boolean  @default(false)
   lastConnectedAt    DateTime?
   createdAt          DateTime @default(now())
+
+  // LIVE = user-supplied external Postgres. UPLOAD = file imported into our
+  // own Neon database, isolated in its own schema (schemaName).
+  sourceType         ConnectionSourceType @default(LIVE)
+  schemaName         String?  // set only for UPLOAD connections
+  originalFileName   String?  // set only for UPLOAD connections
+  fileType           String?  // "csv" | "sql" | "sqlite"
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
