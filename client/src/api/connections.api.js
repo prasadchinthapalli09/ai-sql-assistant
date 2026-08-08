@@ -14,3 +14,11 @@ export const deleteConnection = (id) =>
 
 export const getConnectionSchema = (id) =>
   apiClient.get(`/connections/${id}/schema`).then((r) => r.data.data.schema);
+
+export const uploadDatabaseFile = (formData, onUploadProgress) =>
+  apiClient
+    .post("/connections/upload", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      onUploadProgress,
+    })
+    .then((r) => r.data.data.connection);
