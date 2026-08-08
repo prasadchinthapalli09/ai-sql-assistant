@@ -1,20 +1,48 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Send, Loader2, Copy, Download, Star, Sparkles, Clock, AlertTriangle } from "lucide-react";
-import { listConnections } from "../api/connections.api";
+import { listConnections, getConnectionSchema } from "../api/connections.api";
 import { askQuestion, addFavorite } from "../api/query.api";
 import { useConnection } from "../context/ConnectionContext.jsx";
 import ChartRenderer from "../components/ChartRenderer.jsx";
 import ResultsTable from "../components/ResultsTable.jsx";
 
-const EXAMPLES = [
-  "Show me the top 10 customers by revenue",
-  "How many orders were placed last month?",
-  "What are the 5 most popular products?",
-  "Show monthly revenue trend for this year",
+const FALLBACK_EXAMPLES = [
+  "Show me the first 10 rows",
+  "How many total records are there?",
 ];
+
+const NUMERIC_TYPE_RE = /int|numeric|double|real|float|decimal|serial/i;
+const TEXT_TYPE_RE = /char|text|uuid|string/i;
+const DATE_TYPE_RE = /date|time/i;
+
+function buildExampleQuestions(tables) {
+  if (!tables?.length) return FALLBACK_EXAMPLES;
+
+  // Prefer the table with the most columns — usually the most "interesting" one
+  const table = [...tables].sort((a, b) => b.columns.length - a.columns.length)[0];
+  const numericCol = table.columns.find((c) => NUMERIC_TYPE_RE.test(c.type) && !table.primaryKeys.includes(c.name));
+  const textCol = table.columns.find((c) => TEXT_TYPE_RE.test(c.type)) || table.columns[0];
+  const dateCol = table.columns.find((c) => DATE_TYPE_RE.test(c.type));
+
+  const examples = [`Show me the first 10 rows from ${table.name}`, `How many rows are in ${table.name}?`];
+
+  if (numericCol && textCol) {
+    examples.push(`What is the average ${numericCol.name} grouped by ${textCol.name} in ${table.name}?`);
+  } else if (textCol) {
+    examples.push(`Show the top 10 ${table.name} grouped by ${textCol.name}`);
+  }
+
+  if (dateCol && numericCol) {
+    examples.push(`Show the trend of ${numericCol.name} over ${dateCol.name} in ${table.name}`);
+  } else if (tables.length > 1) {
+    examples.push(`How many ${tables[1].name} are there per ${table.name}?`);
+  }
+
+  return examples.slice(0, 4);
+}
 
 export default function QueryPage() {
   const { activeConnectionId, setActiveConnectionId } = useConnection();
@@ -23,6 +51,22 @@ export default function QueryPage() {
   const [result, setResult] = useState(null);
 
   const { data: connections } = useQuery({ queryKey: ["connections"], queryFn: listConnections });
+
+  const { data: schemaTables } = useQuery({
+    queryKey: ["schema", activeConnectionId],
+    queryFn: () => getConnectionSchema(activeConnectionId),
+    enabled: !!activeConnectionId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const examples = useMemo(() => buildExampleQuestions(schemaTables), [schemaTables]);
+
+  const handleConnectionChange = (id) => {
+    setActiveConnectionId(id);
+    setResult(null);
+    setConversation([]);
+    setQuestion("");
+  };
 
   const askMutation = useMutation({
     mutationFn: askQuestion,
@@ -105,7 +149,7 @@ export default function QueryPage() {
         <select
           className="input-field"
           value={activeConnectionId || ""}
-          onChange={(e) => setActiveConnectionId(e.target.value)}
+          onChange={(e) => handleConnectionChange(e.target.value)}
         >
           <option value="" disabled>
             Select a connection
@@ -132,7 +176,7 @@ export default function QueryPage() {
           </button>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          {EXAMPLES.map((ex) => (
+          {examples.map((ex) => (
             <button
               type="button"
               key={ex}
