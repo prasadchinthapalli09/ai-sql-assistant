@@ -4,6 +4,9 @@
   "description": "AI SQL Assistant - Backend API",
   "main": "src/index.js",
   "type": "commonjs",
+  "prisma": {
+    "schema": "src/prisma/schema.prisma"
+  },
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
