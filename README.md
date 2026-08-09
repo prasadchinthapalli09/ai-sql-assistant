@@ -20,7 +20,6 @@ Live demo: **https://ai-sql-assistant-khaki.vercel.app**
 - [API Reference](#api-reference)
 - [Security](#security)
 - [Sample Datasets](#sample-datasets)
-- [Screenshots](#screenshots)
 - [Future Improvements](#future-improvements)
 - [License](#license)
 
@@ -321,11 +320,6 @@ Bundled for instant demoing, no upload required:
 
 ---
 
-## Screenshots
-
-_Add screenshots of the Dashboard, Ask a Question flow, and Connections page here._
-
----
 
 ## Future Improvements
 
